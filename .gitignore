@@ -1,0 +1,39 @@
+# Gradle files
+.gradle/
+build/
+
+# External build tools
+jdk21/
+gradle-*/
+gradle-*.zip
+
+# Fabric/Minecraft specific
+run/
+run_server/
+logs/
+crash-reports/
+.nb-gradle/
+bin/
+out/
+
+# IDE specific
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+.factorypath
+
+# OS specific
+.DS_Store
+thumbs.db
+
+# Project wrappers (Optional: user might want to keep these, but they asked to ignore what's not needed)
+# In this environment, we are using the downloaded gradle-8.9 instead of the wrapper.
+gradlew
+gradlew.bat
+gradle/wrapper/gradle-wrapper.jar
+gradle/wrapper/gradle-wrapper.properties

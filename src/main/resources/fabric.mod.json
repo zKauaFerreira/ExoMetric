@@ -1,0 +1,29 @@
+{
+    "schemaVersion": 1,
+    "id": "exometric",
+    "version": "${version}",
+    "name": "ExoMetric",
+    "description": "Monitoramento externo de métricas para servidores Minecraft no Pterodactyl",
+    "authors": [
+        "Me"
+    ],
+    "contact": {},
+    "license": "CC0-1.0",
+    "icon": "assets/exometric/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.exometric.ExoMetric"
+        ]
+    },
+    "mixins": [],
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "minecraft": "~${minecraft_version}",
+        "java": ">=17",
+        "fabric-api": "*"
+    },
+    "suggests": {
+        "another-mod": "*"
+    }
+}
