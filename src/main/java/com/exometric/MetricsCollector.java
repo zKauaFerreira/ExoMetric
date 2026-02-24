@@ -104,8 +104,17 @@ public class MetricsCollector {
                         try { pd.y = player.getY(); } catch (Throwable t) {}
                         try { pd.z = player.getZ(); } catch (Throwable t) {}
                         
-                        // Add Avatar URL (Head) - Using MC-Heads for stability and high quality
-                        pd.avatar_url = "https://mc-heads.net/avatar/" + player.getUuidAsString() + "/64";
+                        // Determinar identificador para o avatar: Prioridade para Texture ID do SkinsRestorer, fallback para UUID
+                        String skinIdentifier = null;
+                        try {
+                            skinIdentifier = getSkinsRestorerTextureId(player.getUuid());
+                        } catch (Throwable ignored) {}
+                        
+                        if (skinIdentifier == null) {
+                            skinIdentifier = player.getUuidAsString();
+                        }
+
+                        pd.avatar_url = "https://mc-heads.net/avatar/" + skinIdentifier + "/64";
                         
                         data.players.add(pd);
                     }
@@ -156,5 +165,25 @@ public class MetricsCollector {
 
     public static MetricsData getLatestMetrics() {
         return cachedMetrics;
+    }
+
+    private static String getSkinsRestorerTextureId(java.util.UUID uuid) {
+        try {
+            Class<?> providerClass = Class.forName("net.skinsrestorer.api.SkinsRestorerProvider");
+            Object api = providerClass.getMethod("get").invoke(null);
+            Object playerStorage = api.getClass().getMethod("getPlayerStorage").invoke(api);
+            java.util.Optional<?> property = (java.util.Optional<?>) playerStorage.getClass()
+                .getMethod("getSkinOfPlayer", java.util.UUID.class).invoke(playerStorage, uuid);
+
+            if (property.isPresent()) {
+                Object skinProperty = property.get();
+                Class<?> utilsClass = Class.forName("net.skinsrestorer.api.property.PropertyUtils");
+                String url = (String) utilsClass.getMethod("getSkinTextureUrl", skinProperty.getClass()).invoke(null, skinProperty);
+                if (url != null && url.contains("/")) {
+                    return url.substring(url.lastIndexOf('/') + 1);
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
     }
 }
