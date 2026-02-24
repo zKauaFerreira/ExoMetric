@@ -40,6 +40,7 @@ public class MetricsData {
         public double x;
         public double y;
         public double z;
+        public String avatar_url;
     }
 
     private String safeNum(Number n) {
@@ -110,7 +111,8 @@ public class MetricsData {
             sb.append("      \"health\": ").append(String.format(java.util.Locale.US, "%.1f", p.health)).append(",\n");
             sb.append("      \"x\": ").append(String.format(java.util.Locale.US, "%.1f", p.x)).append(",\n");
             sb.append("      \"y\": ").append(String.format(java.util.Locale.US, "%.1f", p.y)).append(",\n");
-            sb.append("      \"z\": ").append(String.format(java.util.Locale.US, "%.1f", p.z)).append("\n");
+            sb.append("      \"z\": ").append(String.format(java.util.Locale.US, "%.1f", p.z)).append(",\n");
+            sb.append("      \"avatar_url\": \"").append(p.avatar_url).append("\"\n");
             sb.append("    }");
             if (i < players.size() - 1) {
                 sb.append(",");

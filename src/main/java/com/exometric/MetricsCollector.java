@@ -104,6 +104,9 @@ public class MetricsCollector {
                         try { pd.y = player.getY(); } catch (Throwable t) {}
                         try { pd.z = player.getZ(); } catch (Throwable t) {}
                         
+                        // Add Avatar URL (Head) - Using Crafatar for high quality and overlay support
+                        pd.avatar_url = "https://crafatar.com/avatars/" + player.getUuidAsString() + "?size=64&overlay";
+                        
                         data.players.add(pd);
                     }
                 } catch (Throwable t) {
