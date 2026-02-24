@@ -13,6 +13,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.lang.reflect.Method;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -89,17 +90,29 @@ public class MetricsCollector {
                         
                         pd.name = player.getName().getString();
                         pd.uuid = player.getUuidAsString();
-                        pd.ping = player.networkHandler.getLatency();
                         
-                        // FIX: Using world field or casting to avoid potential NoSuchMethodError on 1.21.11 Yarn vs Mojang issues
-                        World playerWorld = (World) player.getWorld(); 
-                        pd.dimension = playerWorld.getRegistryKey().getValue().toString();
+                        try {
+                            pd.ping = player.networkHandler.getLatency();
+                        } catch (Throwable t) { pd.ping = 0; }
                         
-                        pd.gamemode = player.interactionManager.getGameMode().getName().toUpperCase();
+                        // FIX: Safe dimension retrieval to avoid NoSuchMethodError
+                        pd.dimension = getDimensionSafe(player);
+                        
+                        try {
+                            pd.gamemode = player.interactionManager.getGameMode().getName().toUpperCase();
+                        } catch (Throwable t) { pd.gamemode = "SURVIVAL"; }
+                        
                         pd.level = player.experienceLevel;
                         pd.health = player.getHealth();
-                        pd.food = player.getHungerManager().getFoodLevel();
-                        pd.saturation = player.getHungerManager().getSaturationLevel();
+                        
+                        try {
+                            pd.food = player.getHungerManager().getFoodLevel();
+                            pd.saturation = player.getHungerManager().getSaturationLevel();
+                        } catch (Throwable t) {
+                            pd.food = 20;
+                            pd.saturation = 5.0f;
+                        }
+
                         pd.x = player.getX();
                         pd.y = player.getY();
                         pd.z = player.getZ();
@@ -117,15 +130,8 @@ public class MetricsCollector {
                         pd.avatar_url = "https://mc-heads.net/avatar/" + skinIdentifier + "/64";
                         
                         // Itens nas mãos
-                        pd.mainHand = convertItem(player.getMainHandStack(), -1); // -1 para hand
-                        pd.offHand = convertItem(player.getOffHandStack(), -1);
-                        
-                        // Categorização Rigorosa de Inventário
-                        // Minecraft 1.21 Inventory slots:
-                        // 0-8: Hotbar
-                        // 9-35: Main Inventory
-                        // 36-39: Armor (Boots, Leggings, Chest, Head)
-                        // 40: Offhand
+                        pd.mainHand = convertItem(player.getMainHandStack(), -1);
+                        pd.offHand = convertItem(player.getOffHandStack(), 40);
                         
                         // Hotbar (0-8)
                         for (int i = 0; i < 9; i++) {
@@ -151,7 +157,6 @@ public class MetricsCollector {
                     }
                 }
                 
-                // Limpar cache de tempo online para quem saiu
                 loginTimes.keySet().removeIf(id -> activeServer.getPlayerManager().getPlayer(id) == null);
 
                 // TPS
@@ -183,8 +188,36 @@ public class MetricsCollector {
         cachedMetrics = data;
     }
 
+    private static String getDimensionSafe(ServerPlayerEntity player) {
+        try {
+            // Tenta o método direto primeiro
+            return player.getWorld().getRegistryKey().getValue().toString();
+        } catch (Throwable t) {
+            try {
+                // Tenta via reflection buscando QUALQUER método que retorne um objeto tipo World/ServerWorld
+                for (Method m : player.getClass().getMethods()) {
+                    if (m.getParameterCount() == 0) {
+                        Class<?> ret = m.getReturnType();
+                        if (ret.getName().endsWith("World") || ret.getName().endsWith("ServerWorld")) {
+                            Object world = m.invoke(player);
+                            if (world != null) {
+                                // Usa reflexão para pegar a RegistryKey do mundo retornado
+                                Method getReg = world.getClass().getMethod("getRegistryKey");
+                                Object regKey = getReg.invoke(world);
+                                Method getVal = regKey.getClass().getMethod("getValue");
+                                Object ident = getVal.invoke(regKey);
+                                return ident.toString();
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable t2) {}
+        }
+        return "minecraft:overworld";
+    }
+
     private static MetricsData.ItemData convertItem(ItemStack stack, int slot) {
-        if (stack.isEmpty()) return null;
+        if (stack == null || stack.isEmpty()) return null;
         MetricsData.ItemData item = new MetricsData.ItemData();
         item.id = Registries.ITEM.getId(stack.getItem()).toString();
         item.count = stack.getCount();
@@ -207,28 +240,6 @@ public class MetricsCollector {
                     int end = decoded.indexOf("\"", start);
                     String url = decoded.substring(start, end);
                     if (url.contains("/")) return url.substring(url.lastIndexOf('/') + 1);
-                }
-            }
-        } catch (Throwable ignored) {}
-        
-        // Fallback para SkinsRestorer API
-        return getSkinsRestorerTextureId(player.getUuid());
-    }
-
-    private static String getSkinsRestorerTextureId(java.util.UUID uuid) {
-        try {
-            Class<?> providerClass = Class.forName("net.skinsrestorer.api.SkinsRestorerProvider");
-            Object api = providerClass.getMethod("get").invoke(null);
-            Object playerStorage = api.getClass().getMethod("getPlayerStorage").invoke(api);
-            java.util.Optional<?> property = (java.util.Optional<?>) playerStorage.getClass()
-                .getMethod("getSkinOfPlayer", java.util.UUID.class).invoke(playerStorage, uuid);
-
-            if (property.isPresent()) {
-                Object skinProperty = property.get();
-                Class<?> utilsClass = Class.forName("net.skinsrestorer.api.property.PropertyUtils");
-                String url = (String) utilsClass.getMethod("getSkinTextureUrl", skinProperty.getClass()).invoke(null, skinProperty);
-                if (url != null && url.contains("/")) {
-                    return url.substring(url.lastIndexOf('/') + 1);
                 }
             }
         } catch (Throwable ignored) {}
