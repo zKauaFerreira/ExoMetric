@@ -1,6 +1,6 @@
 # ExoMetric
 
-**ExoMetric** is a high-performance Fabric mod for Minecraft 1.21.1 designed for external telemetry. It exposes detailed server metrics (TPS, MSPT, Players) and Linux/Pterodactyl container data (CPU, RAM, Disk) via a secure internal HTTP API.
+**ExoMetric** is a high-performance Fabric mod for Minecraft 1.21.x designed for external telemetry. It exposes detailed server metrics (TPS, MSPT, Players) and Linux/Pterodactyl container data (CPU, RAM, Disk) via a secure internal HTTP API.
 
 ## 🚀 Quick Start
 

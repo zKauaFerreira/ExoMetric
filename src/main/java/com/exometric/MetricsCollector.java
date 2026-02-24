@@ -1,6 +1,8 @@
 package com.exometric;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -77,7 +79,7 @@ public class MetricsCollector {
                 }
                 
                 try {
-                    for (net.minecraft.server.network.ServerPlayerEntity player : activeServer.getPlayerManager().getPlayerList()) {
+                    for (ServerPlayerEntity player : activeServer.getPlayerManager().getPlayerList()) {
                         MetricsData.PlayerData pd = new MetricsData.PlayerData();
                         
                         try { pd.name = player.getName().getString(); } catch (Throwable t) { pd.name = "Unknown"; }
@@ -125,14 +127,14 @@ public class MetricsCollector {
 
                 try {
                     int chunks = 0;
-                    for (net.minecraft.server.world.ServerWorld w : activeServer.getWorlds()) {
+                    for (ServerWorld w : activeServer.getWorlds()) {
                         try { chunks += w.getChunkManager().getLoadedChunkCount(); } catch (Throwable t) {}
                     }
                     data.loadedChunks = chunks;
                 } catch (Throwable t) {}
 
                 try {
-                    net.minecraft.server.world.ServerWorld overworld = activeServer.getOverworld();
+                    ServerWorld overworld = activeServer.getOverworld();
                     if (overworld != null) {
                         try { data.worldSeed = overworld.getSeed(); } catch (Throwable t) {}
                         try { data.worldTime = overworld.getTimeOfDay(); } catch (Throwable t) {}
