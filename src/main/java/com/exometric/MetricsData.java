@@ -37,10 +37,24 @@ public class MetricsData {
         public String gamemode;
         public int level;
         public double health;
+        public int food;
+        public float saturation;
         public double x;
         public double y;
         public double z;
         public String avatar_url;
+        public long onlineSeconds;
+        
+        public ItemData mainHand;
+        public ItemData offHand;
+        public List<ItemData> inventory = new ArrayList<>();
+    }
+
+    public static class ItemData {
+        public String id;
+        public int count;
+        public int slot;
+        public String name;
     }
 
     private String safeNum(Number n) {
@@ -109,10 +123,27 @@ public class MetricsData {
             sb.append("      \"gamemode\": \"").append(p.gamemode).append("\",\n");
             sb.append("      \"level\": ").append(p.level).append(",\n");
             sb.append("      \"health\": ").append(String.format(java.util.Locale.US, "%.1f", p.health)).append(",\n");
+            sb.append("      \"food\": ").append(p.food).append(",\n");
+            sb.append("      \"saturation\": ").append(String.format(java.util.Locale.US, "%.1f", p.saturation)).append(",\n");
             sb.append("      \"x\": ").append(String.format(java.util.Locale.US, "%.1f", p.x)).append(",\n");
             sb.append("      \"y\": ").append(String.format(java.util.Locale.US, "%.1f", p.y)).append(",\n");
             sb.append("      \"z\": ").append(String.format(java.util.Locale.US, "%.1f", p.z)).append(",\n");
-            sb.append("      \"avatar_url\": \"").append(p.avatar_url).append("\"\n");
+            sb.append("      \"online_seconds\": ").append(p.onlineSeconds).append(",\n");
+            sb.append("      \"avatar_url\": \"").append(p.avatar_url).append("\",\n");
+            
+            // Itens nas mãos
+            sb.append("      \"main_hand\": ").append(itemToJson(p.mainHand)).append(",\n");
+            sb.append("      \"off_hand\": ").append(itemToJson(p.offHand)).append(",\n");
+            
+            // Inventário
+            sb.append("      \"inventory\": [\n");
+            for (int k = 0; k < p.inventory.size(); k++) {
+                sb.append("        ").append(itemToJson(p.inventory.get(k)));
+                if (k < p.inventory.size() - 1) sb.append(",");
+                sb.append("\n");
+            }
+            sb.append("      ]\n");
+            
             sb.append("    }");
             if (i < players.size() - 1) {
                 sb.append(",");
@@ -122,5 +153,10 @@ public class MetricsData {
         sb.append("  ]\n");
         sb.append("}");
         return sb.toString();
+    }
+
+    private String itemToJson(ItemData item) {
+        if (item == null || item.id == null || item.id.equals("minecraft:air")) return "null";
+        return "{\"id\": \"" + item.id + "\", \"count\": " + item.count + ", \"slot\": " + item.slot + ", \"name\": \"" + (item.name != null ? item.name : "") + "\"}";
     }
 }

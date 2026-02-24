@@ -3,10 +3,15 @@ package com.exometric;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import java.util.Collection;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -17,6 +22,9 @@ public class MetricsCollector {
     private static volatile MetricsData cachedMetrics = new MetricsData();
     private static ScheduledExecutorService scheduler;
     private static MinecraftServer activeServer = null;
+    
+    // Rastreio de tempo online (UUID -> LoginTime)
+    private static final Map<UUID, Long> loginTimes = new HashMap<>();
 
     // TPS calculation
     private static final int TPS_SAMPLE_SIZE = 100;
@@ -50,14 +58,11 @@ public class MetricsCollector {
     }
 
     private static void collect() {
-        // Verifica se a config mudou antes de coletar
         try {
             if (ConfigManager.checkAndReload()) {
                 StatsHttpServer.reload();
             }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
+        } catch (Throwable t) {}
 
         MetricsData data = new MetricsData();
         
@@ -71,91 +76,79 @@ public class MetricsCollector {
                 data.networkTxBytes = net[1];
             }
             data.uptimeSeconds = SystemMetrics.getUptimeSeconds();
-            
             data.heapMaxBytes = Runtime.getRuntime().totalMemory();
             data.heapUsedBytes = data.heapMaxBytes - Runtime.getRuntime().freeMemory();
 
             if (activeServer != null) {
-                try {
-                    data.playersOnline = activeServer.getPlayerManager().getPlayerList().size();
-                } catch (Throwable t) {
-                    data.playersOnline = 0;
+                data.playersOnline = activeServer.getPlayerManager().getPlayerList().size();
+                
+                for (ServerPlayerEntity player : activeServer.getPlayerManager().getPlayerList()) {
+                    MetricsData.PlayerData pd = new MetricsData.PlayerData();
+                    
+                    pd.name = player.getName().getString();
+                    pd.uuid = player.getUuidAsString();
+                    pd.ping = player.networkHandler.getLatency();
+                    pd.dimension = player.getWorld().getRegistryKey().getValue().toString();
+                    pd.gamemode = player.interactionManager.getGameMode().getName().toUpperCase();
+                    pd.level = player.experienceLevel;
+                    pd.health = player.getHealth();
+                    pd.food = player.getHungerManager().getFoodLevel();
+                    pd.saturation = player.getHungerManager().getSaturationLevel();
+                    pd.x = player.getX();
+                    pd.y = player.getY();
+                    pd.z = player.getZ();
+                    
+                    // Tempo Online
+                    UUID u = player.getUuid();
+                    if (!loginTimes.containsKey(u)) {
+                        loginTimes.put(u, System.currentTimeMillis());
+                    }
+                    pd.onlineSeconds = (System.currentTimeMillis() - loginTimes.getOrDefault(u, System.currentTimeMillis())) / 1000;
+
+                    // Skin / Avatar
+                    String skinIdentifier = getSkinIdentifierFromProfile(player);
+                    if (skinIdentifier == null) skinIdentifier = player.getUuidAsString();
+                    pd.avatar_url = "https://mc-heads.net/avatar/" + skinIdentifier + "/64";
+                    
+                    // Itens
+                    pd.mainHand = convertItem(player.getMainHandStack(), 0);
+                    pd.offHand = convertItem(player.getOffHandStack(), 0);
+                    
+                    // Inventário (Slots 0-35)
+                    for (int i = 0; i < player.getInventory().size(); i++) {
+                        ItemStack stack = player.getInventory().getStack(i);
+                        if (!stack.isEmpty()) {
+                            pd.inventory.add(convertItem(stack, i));
+                        }
+                    }
+                    
+                    data.players.add(pd);
                 }
                 
-                try {
-                    for (ServerPlayerEntity player : activeServer.getPlayerManager().getPlayerList()) {
-                        MetricsData.PlayerData pd = new MetricsData.PlayerData();
-                        
-                        try { pd.name = player.getName().getString(); } catch (Throwable t) { pd.name = "Unknown"; }
-                        try { pd.uuid = player.getUuidAsString(); } catch (Throwable t) { pd.uuid = ""; }
-                        
-                        try {
-                            pd.ping = player.networkHandler.getLatency();
-                        } catch (Throwable t) {
-                            pd.ping = 0;
-                        }
+                // Limpar cache de tempo online para quem saiu
+                loginTimes.keySet().removeIf(id -> activeServer.getPlayerManager().getPlayer(id) == null);
 
-                        try { 
-                            pd.dimension = player.getWorld().getRegistryKey().getValue().toString(); 
-                        } catch (Throwable t) { 
-                            pd.dimension = "minecraft:overworld"; 
-                        }
-                        if (pd.dimension == null) pd.dimension = "minecraft:overworld";
-                        try { pd.gamemode = player.interactionManager.getGameMode().getName().toUpperCase(); } catch (Throwable t) {}
-                        try { pd.level = player.experienceLevel; } catch (Throwable t) {}
-                        try { pd.health = player.getHealth(); } catch (Throwable t) {}
-                        try { pd.x = player.getX(); } catch (Throwable t) {}
-                        try { pd.y = player.getY(); } catch (Throwable t) {}
-                        try { pd.z = player.getZ(); } catch (Throwable t) {}
-                        
-                        // Determinar identificador para o avatar: Prioridade para Texture ID extraído do GameProfile (SkinsRestorer injeta lá)
-                        String skinIdentifier = getSkinIdentifierFromProfile(player);
-                        
-                        if (skinIdentifier == null) {
-                            skinIdentifier = player.getUuidAsString();
-                        }
+                // TPS
+                long total = 0;
+                for (long t : tickTimes) total += t;
+                double avg = (double) total / TPS_SAMPLE_SIZE;
+                data.mspt = avg;
+                data.tps = Math.min(20.0, 1000.0 / avg);
+                data.currentTickTime = (double) tickTimes[(tickIndex - 1 + TPS_SAMPLE_SIZE) % TPS_SAMPLE_SIZE];
 
-                        pd.avatar_url = "https://mc-heads.net/avatar/" + skinIdentifier + "/64";
-                        
-                        data.players.add(pd);
-                    }
-                } catch (Throwable t) {
-                    // Ignora caso getPlayerList() quebre a iteração
+                // World stats
+                int chunks = 0;
+                for (ServerWorld w : activeServer.getWorlds()) chunks += w.getChunkManager().getLoadedChunkCount();
+                data.loadedChunks = chunks;
+
+                ServerWorld overworld = activeServer.getOverworld();
+                if (overworld != null) {
+                    data.worldSeed = overworld.getSeed();
+                    data.worldTime = overworld.getTimeOfDay();
+                    data.worldDay = overworld.getTimeOfDay() / 24000L;
+                    data.isRaining = overworld.isRaining();
                 }
-
-                try {
-                    long total = 0;
-                    for (long t : tickTimes) {
-                        total += t;
-                    }
-                    double averageTickTime = (double) total / TPS_SAMPLE_SIZE;
-                    data.mspt = averageTickTime;
-                    
-                    double tps = 1000.0 / averageTickTime;
-                    if (tps > 20.0) tps = 20.0;
-                    data.tps = tps;
-                    
-                    data.currentTickTime = (double) tickTimes[(tickIndex - 1 + TPS_SAMPLE_SIZE) % TPS_SAMPLE_SIZE];
-                } catch (Throwable t) {}
-
-                try {
-                    int chunks = 0;
-                    for (ServerWorld w : activeServer.getWorlds()) {
-                        try { chunks += w.getChunkManager().getLoadedChunkCount(); } catch (Throwable t) {}
-                    }
-                    data.loadedChunks = chunks;
-                } catch (Throwable t) {}
-
-                try {
-                    ServerWorld overworld = activeServer.getOverworld();
-                    if (overworld != null) {
-                        try { data.worldSeed = overworld.getSeed(); } catch (Throwable t) {}
-                        try { data.worldTime = overworld.getTimeOfDay(); } catch (Throwable t) {}
-                        try { data.worldDay = overworld.getTimeOfDay() / 24000L; } catch (Throwable t) {}
-                        try { data.isRaining = overworld.isRaining(); } catch (Throwable t) {}
-                    }
-                    try { data.difficulty = activeServer.getSaveProperties().getDifficulty().getName(); } catch(Throwable t) {}
-                } catch (Throwable t) {}
+                data.difficulty = activeServer.getSaveProperties().getDifficulty().getName();
             }
         } catch (Throwable t) {
             t.printStackTrace();
@@ -164,8 +157,14 @@ public class MetricsCollector {
         cachedMetrics = data;
     }
 
-    public static MetricsData getLatestMetrics() {
-        return cachedMetrics;
+    private static MetricsData.ItemData convertItem(ItemStack stack, int slot) {
+        if (stack.isEmpty()) return null;
+        MetricsData.ItemData item = new MetricsData.ItemData();
+        item.id = Registries.ITEM.getId(stack.getItem()).toString();
+        item.count = stack.getCount();
+        item.slot = slot;
+        item.name = stack.getName().getString();
+        return item;
     }
 
     private static String getSkinIdentifierFromProfile(ServerPlayerEntity player) {
@@ -176,44 +175,19 @@ public class MetricsCollector {
             for (Property property : textures) {
                 String value = property.value();
                 if (value == null || value.isEmpty()) continue;
-                
-                // Decodificar Base64
                 String decoded = new String(Base64.getDecoder().decode(value));
-                
-                // Extrair URL do JSON manual para evitar dependência extra
                 if (decoded.contains("\"url\":")) {
                     int start = decoded.indexOf("\"url\":\"") + 7;
                     int end = decoded.indexOf("\"", start);
                     String url = decoded.substring(start, end);
-                    
-                    if (url.contains("/")) {
-                        return url.substring(url.lastIndexOf('/') + 1);
-                    }
-                }
-            }
-        } catch (Throwable ignored) {}
-        
-        // Se falhar, tenta SkinsRestorer API como fallback
-        return getSkinsRestorerTextureId(player.getUuid());
-    }
-
-    private static String getSkinsRestorerTextureId(java.util.UUID uuid) {
-        try {
-            Class<?> providerClass = Class.forName("net.skinsrestorer.api.SkinsRestorerProvider");
-            Object api = providerClass.getMethod("get").invoke(null);
-            Object playerStorage = api.getClass().getMethod("getPlayerStorage").invoke(api);
-            java.util.Optional<?> property = (java.util.Optional<?>) playerStorage.getClass()
-                .getMethod("getSkinOfPlayer", java.util.UUID.class).invoke(playerStorage, uuid);
-
-            if (property.isPresent()) {
-                Object skinProperty = property.get();
-                Class<?> utilsClass = Class.forName("net.skinsrestorer.api.property.PropertyUtils");
-                String url = (String) utilsClass.getMethod("getSkinTextureUrl", skinProperty.getClass()).invoke(null, skinProperty);
-                if (url != null && url.contains("/")) {
-                    return url.substring(url.lastIndexOf('/') + 1);
+                    if (url.contains("/")) return url.substring(url.lastIndexOf('/') + 1);
                 }
             }
         } catch (Throwable ignored) {}
         return null;
+    }
+
+    public static MetricsData getLatestMetrics() {
+        return cachedMetrics;
     }
 }
