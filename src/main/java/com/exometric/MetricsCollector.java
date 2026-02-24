@@ -5,6 +5,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.world.World;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import java.util.Collection;
@@ -83,46 +84,71 @@ public class MetricsCollector {
                 data.playersOnline = activeServer.getPlayerManager().getPlayerList().size();
                 
                 for (ServerPlayerEntity player : activeServer.getPlayerManager().getPlayerList()) {
-                    MetricsData.PlayerData pd = new MetricsData.PlayerData();
-                    
-                    pd.name = player.getName().getString();
-                    pd.uuid = player.getUuidAsString();
-                    pd.ping = player.networkHandler.getLatency();
-                    pd.dimension = player.getWorld().getRegistryKey().getValue().toString();
-                    pd.gamemode = player.interactionManager.getGameMode().getName().toUpperCase();
-                    pd.level = player.experienceLevel;
-                    pd.health = player.getHealth();
-                    pd.food = player.getHungerManager().getFoodLevel();
-                    pd.saturation = player.getHungerManager().getSaturationLevel();
-                    pd.x = player.getX();
-                    pd.y = player.getY();
-                    pd.z = player.getZ();
-                    
-                    // Tempo Online
-                    UUID u = player.getUuid();
-                    if (!loginTimes.containsKey(u)) {
-                        loginTimes.put(u, System.currentTimeMillis());
-                    }
-                    pd.onlineSeconds = (System.currentTimeMillis() - loginTimes.getOrDefault(u, System.currentTimeMillis())) / 1000;
-
-                    // Skin / Avatar
-                    String skinIdentifier = getSkinIdentifierFromProfile(player);
-                    if (skinIdentifier == null) skinIdentifier = player.getUuidAsString();
-                    pd.avatar_url = "https://mc-heads.net/avatar/" + skinIdentifier + "/64";
-                    
-                    // Itens
-                    pd.mainHand = convertItem(player.getMainHandStack(), 0);
-                    pd.offHand = convertItem(player.getOffHandStack(), 0);
-                    
-                    // Inventário (Slots 0-35)
-                    for (int i = 0; i < player.getInventory().size(); i++) {
-                        ItemStack stack = player.getInventory().getStack(i);
-                        if (!stack.isEmpty()) {
-                            pd.inventory.add(convertItem(stack, i));
+                    try {
+                        MetricsData.PlayerData pd = new MetricsData.PlayerData();
+                        
+                        pd.name = player.getName().getString();
+                        pd.uuid = player.getUuidAsString();
+                        pd.ping = player.networkHandler.getLatency();
+                        
+                        // FIX: Using world field or casting to avoid potential NoSuchMethodError on 1.21.11 Yarn vs Mojang issues
+                        World playerWorld = (World) player.getWorld(); 
+                        pd.dimension = playerWorld.getRegistryKey().getValue().toString();
+                        
+                        pd.gamemode = player.interactionManager.getGameMode().getName().toUpperCase();
+                        pd.level = player.experienceLevel;
+                        pd.health = player.getHealth();
+                        pd.food = player.getHungerManager().getFoodLevel();
+                        pd.saturation = player.getHungerManager().getSaturationLevel();
+                        pd.x = player.getX();
+                        pd.y = player.getY();
+                        pd.z = player.getZ();
+                        
+                        // Tempo Online
+                        UUID u = player.getUuid();
+                        if (!loginTimes.containsKey(u)) {
+                            loginTimes.put(u, System.currentTimeMillis());
                         }
+                        pd.onlineSeconds = (System.currentTimeMillis() - loginTimes.getOrDefault(u, System.currentTimeMillis())) / 1000;
+
+                        // Skin / Avatar
+                        String skinIdentifier = getSkinIdentifierFromProfile(player);
+                        if (skinIdentifier == null) skinIdentifier = player.getUuidAsString();
+                        pd.avatar_url = "https://mc-heads.net/avatar/" + skinIdentifier + "/64";
+                        
+                        // Itens nas mãos
+                        pd.mainHand = convertItem(player.getMainHandStack(), -1); // -1 para hand
+                        pd.offHand = convertItem(player.getOffHandStack(), -1);
+                        
+                        // Categorização Rigorosa de Inventário
+                        // Minecraft 1.21 Inventory slots:
+                        // 0-8: Hotbar
+                        // 9-35: Main Inventory
+                        // 36-39: Armor (Boots, Leggings, Chest, Head)
+                        // 40: Offhand
+                        
+                        // Hotbar (0-8)
+                        for (int i = 0; i < 9; i++) {
+                            ItemStack stack = player.getInventory().getStack(i);
+                            if (!stack.isEmpty()) pd.hotbar.add(convertItem(stack, i));
+                        }
+                        
+                        // Main Inventory (9-35)
+                        for (int i = 9; i < 36; i++) {
+                            ItemStack stack = player.getInventory().getStack(i);
+                            if (!stack.isEmpty()) pd.mainInventory.add(convertItem(stack, i));
+                        }
+                        
+                        // Armor (36-39)
+                        for (int i = 36; i < 40; i++) {
+                            ItemStack stack = player.getInventory().getStack(i);
+                            if (!stack.isEmpty()) pd.armor.add(convertItem(stack, i));
+                        }
+                        
+                        data.players.add(pd);
+                    } catch (Throwable pt) {
+                        pt.printStackTrace();
                     }
-                    
-                    data.players.add(pd);
                 }
                 
                 // Limpar cache de tempo online para quem saiu
@@ -181,6 +207,28 @@ public class MetricsCollector {
                     int end = decoded.indexOf("\"", start);
                     String url = decoded.substring(start, end);
                     if (url.contains("/")) return url.substring(url.lastIndexOf('/') + 1);
+                }
+            }
+        } catch (Throwable ignored) {}
+        
+        // Fallback para SkinsRestorer API
+        return getSkinsRestorerTextureId(player.getUuid());
+    }
+
+    private static String getSkinsRestorerTextureId(java.util.UUID uuid) {
+        try {
+            Class<?> providerClass = Class.forName("net.skinsrestorer.api.SkinsRestorerProvider");
+            Object api = providerClass.getMethod("get").invoke(null);
+            Object playerStorage = api.getClass().getMethod("getPlayerStorage").invoke(api);
+            java.util.Optional<?> property = (java.util.Optional<?>) playerStorage.getClass()
+                .getMethod("getSkinOfPlayer", java.util.UUID.class).invoke(playerStorage, uuid);
+
+            if (property.isPresent()) {
+                Object skinProperty = property.get();
+                Class<?> utilsClass = Class.forName("net.skinsrestorer.api.property.PropertyUtils");
+                String url = (String) utilsClass.getMethod("getSkinTextureUrl", skinProperty.getClass()).invoke(null, skinProperty);
+                if (url != null && url.contains("/")) {
+                    return url.substring(url.lastIndexOf('/') + 1);
                 }
             }
         } catch (Throwable ignored) {}

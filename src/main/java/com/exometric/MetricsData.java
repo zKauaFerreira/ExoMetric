@@ -47,7 +47,10 @@ public class MetricsData {
         
         public ItemData mainHand;
         public ItemData offHand;
-        public List<ItemData> inventory = new ArrayList<>();
+        
+        public List<ItemData> armor = new ArrayList<>();
+        public List<ItemData> hotbar = new ArrayList<>();
+        public List<ItemData> mainInventory = new ArrayList<>();
     }
 
     public static class ItemData {
@@ -131,18 +134,12 @@ public class MetricsData {
             sb.append("      \"online_seconds\": ").append(p.onlineSeconds).append(",\n");
             sb.append("      \"avatar_url\": \"").append(p.avatar_url).append("\",\n");
             
-            // Itens nas mãos
             sb.append("      \"main_hand\": ").append(itemToJson(p.mainHand)).append(",\n");
             sb.append("      \"off_hand\": ").append(itemToJson(p.offHand)).append(",\n");
             
-            // Inventário
-            sb.append("      \"inventory\": [\n");
-            for (int k = 0; k < p.inventory.size(); k++) {
-                sb.append("        ").append(itemToJson(p.inventory.get(k)));
-                if (k < p.inventory.size() - 1) sb.append(",");
-                sb.append("\n");
-            }
-            sb.append("      ]\n");
+            sb.append("      \"armor\": ").append(itemListToJson(p.armor)).append(",\n");
+            sb.append("      \"hotbar\": ").append(itemListToJson(p.hotbar)).append(",\n");
+            sb.append("      \"main_inventory\": ").append(itemListToJson(p.mainInventory)).append("\n");
             
             sb.append("    }");
             if (i < players.size() - 1) {
@@ -158,5 +155,17 @@ public class MetricsData {
     private String itemToJson(ItemData item) {
         if (item == null || item.id == null || item.id.equals("minecraft:air")) return "null";
         return "{\"id\": \"" + item.id + "\", \"count\": " + item.count + ", \"slot\": " + item.slot + ", \"name\": \"" + (item.name != null ? item.name : "") + "\"}";
+    }
+
+    private String itemListToJson(List<ItemData> list) {
+        if (list == null || list.isEmpty()) return "[]";
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int i = 0; i < list.size(); i++) {
+            sb.append(itemToJson(list.get(i)));
+            if (i < list.size() - 1) sb.append(", ");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 }
