@@ -3,6 +3,10 @@ package com.exometric;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
+import java.util.Collection;
+import java.util.Base64;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -104,11 +108,8 @@ public class MetricsCollector {
                         try { pd.y = player.getY(); } catch (Throwable t) {}
                         try { pd.z = player.getZ(); } catch (Throwable t) {}
                         
-                        // Determinar identificador para o avatar: Prioridade para Texture ID do SkinsRestorer, fallback para UUID
-                        String skinIdentifier = null;
-                        try {
-                            skinIdentifier = getSkinsRestorerTextureId(player.getUuid());
-                        } catch (Throwable ignored) {}
+                        // Determinar identificador para o avatar: Prioridade para Texture ID extraído do GameProfile (SkinsRestorer injeta lá)
+                        String skinIdentifier = getSkinIdentifierFromProfile(player);
                         
                         if (skinIdentifier == null) {
                             skinIdentifier = player.getUuidAsString();
@@ -165,6 +166,35 @@ public class MetricsCollector {
 
     public static MetricsData getLatestMetrics() {
         return cachedMetrics;
+    }
+
+    private static String getSkinIdentifierFromProfile(ServerPlayerEntity player) {
+        try {
+            GameProfile profile = player.getGameProfile();
+            Collection<Property> textures = profile.getProperties().get("textures");
+            
+            for (Property property : textures) {
+                String value = property.value();
+                if (value == null || value.isEmpty()) continue;
+                
+                // Decodificar Base64
+                String decoded = new String(Base64.getDecoder().decode(value));
+                
+                // Extrair URL do JSON manual para evitar dependência extra
+                if (decoded.contains("\"url\":")) {
+                    int start = decoded.indexOf("\"url\":\"") + 7;
+                    int end = decoded.indexOf("\"", start);
+                    String url = decoded.substring(start, end);
+                    
+                    if (url.contains("/")) {
+                        return url.substring(url.lastIndexOf('/') + 1);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        
+        // Se falhar, tenta SkinsRestorer API como fallback
+        return getSkinsRestorerTextureId(player.getUuid());
     }
 
     private static String getSkinsRestorerTextureId(java.util.UUID uuid) {
