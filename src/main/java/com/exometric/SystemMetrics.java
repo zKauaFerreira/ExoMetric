@@ -124,17 +124,10 @@ public class SystemMetrics {
 
     public static Long getUptimeSeconds() {
         try {
-            File uptimeFile = new File("/proc/uptime");
-            if (uptimeFile.exists()) {
-                String content = readFile(uptimeFile).trim();
-                String firstVal = content.split("\\s+")[0];
-                double secondsDouble = Double.parseDouble(firstVal);
-                return (long) secondsDouble;
-            }
+            return java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() / 1000;
         } catch (Exception e) {
-            // ignore
+            return null;
         }
-        return null;
     }
 
     private static String readFile(File file) throws IOException {
