@@ -38,7 +38,9 @@ The config file is located at `config/ExoMetric.json`:
 ### GET `/mc-stats`
 Returns the full server and system summary.
 
-**Example Response:**
+<details>
+<summary><b>Example Response</b></summary>
+
 ```json
 {
   "status": "running",
@@ -62,11 +64,14 @@ Returns the full server and system summary.
   "heap_max_bytes": 369098752
 }
 ```
+</details>
 
 ### GET `/mc-stats/players`
 Returns a detailed list of all online players with coordinates and status.
 
-**Example Response:**
+<details>
+<summary><b>Example Response</b></summary>
+
 ```json
 {
   "players_online": 1,
@@ -140,11 +145,14 @@ Returns a detailed list of all online players with coordinates and status.
   ]
 }
 ```
+</details>
 
 ### GET `/mc-stats/system`
 Returns only hardware and container resource metrics.
 
-**Example Response:**
+<details>
+<summary><b>Example Response</b></summary>
+
 ```json
 {
   "memory_bytes": 1357377536,
@@ -155,6 +163,7 @@ Returns only hardware and container resource metrics.
   "uptime_seconds": 66747
 }
 ```
+</details>
 
 **Required Parameter:** `?token=YOUR_TOKEN`
 
