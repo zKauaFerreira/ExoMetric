@@ -66,8 +66,53 @@ Returns the full server and system summary.
 ### GET `/mc-stats/players`
 Returns a detailed list of all online players with coordinates and status.
 
+**Example Response:**
+```json
+{
+  "players_online": 2,
+  "players": [
+    {
+      "name": "kauafpss_",
+      "uuid": "e618e273-d894-3646-ade8-7a13ef58d6c6",
+      "ping": 37,
+      "dimension": "minecraft:overworld",
+      "gamemode": "SURVIVAL",
+      "level": 32,
+      "health": 20.0,
+      "x": 561.4,
+      "y": 67.0,
+      "z": -33.3
+    },
+    {
+      "name": "but",
+      "uuid": "e92bc5d6-32c4-4cdc-9ea8-e6fea60c9607",
+      "ping": 0,
+      "dimension": "minecraft:overworld",
+      "gamemode": "CREATIVE",
+      "level": 0,
+      "health": 20.0,
+      "x": 0.0,
+      "y": 71.0,
+      "z": 0.0
+    }
+  ]
+}
+```
+
 ### GET `/mc-stats/system`
 Returns only hardware and container resource metrics.
+
+**Example Response:**
+```json
+{
+  "memory_bytes": 1357377536,
+  "cpu_percent": 76.04,
+  "disk_bytes": 344162578432,
+  "network_rx_bytes": 242614,
+  "network_tx_bytes": 3891089,
+  "uptime_seconds": 66747
+}
+```
 
 **Required Parameter:** `?token=YOUR_TOKEN`
 
