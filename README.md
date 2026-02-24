@@ -82,7 +82,7 @@ Returns a detailed list of all online players with coordinates and status.
       "x": 561.4,
       "y": 67.0,
       "z": -33.3,
-      "avatar_url": "https://crafatar.com/avatars/e618e273-d894-3646-ade8-7a13ef58d6c6?size=64&overlay"
+      "avatar_url": "https://mc-heads.net/avatar/e618e273-d894-3646-ade8-7a13ef58d6c6/64"
     },
     {
       "name": "but",
@@ -95,7 +95,7 @@ Returns a detailed list of all online players with coordinates and status.
       "x": 0.0,
       "y": 71.0,
       "z": 0.0,
-      "avatar_url": "https://crafatar.com/avatars/e92bc5d6-32c4-4cdc-9ea8-e6fea60c9607?size=64&overlay"
+      "avatar_url": "https://mc-heads.net/avatar/e92bc5d6-32c4-4cdc-9ea8-e6fea60c9607/64"
     }
   ]
 }
