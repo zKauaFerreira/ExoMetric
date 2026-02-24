@@ -2,6 +2,9 @@
 
 **ExoMetric** is a high-performance Fabric mod for Minecraft 1.21.x designed for external telemetry. It exposes detailed server metrics (TPS, MSPT, Players) and Linux/Pterodactyl container data (CPU, RAM, Disk) via a secure internal HTTP API.
 
+> [!TIP]
+> **Tested on HidenCloud and it works perfectly!** 🚀
+
 ## 🚀 Quick Start
 
 1. Place `exometric-1.0.0.jar` into your server's `mods/` folder.
@@ -35,6 +38,31 @@ The config file is located at `config/ExoMetric.json`:
 ### GET `/mc-stats`
 Returns the full server and system summary.
 
+**Example Response:**
+```json
+{
+  "status": "running",
+  "memory_bytes": 754241536,
+  "cpu_percent": 0.31,
+  "disk_bytes": 344161165312,
+  "network_rx_bytes": 410768,
+  "network_tx_bytes": 7628,
+  "uptime_seconds": 66133,
+  "players_online": 0,
+  "tps": 20.00,
+  "mspt": 50.00,
+  "current_tick_time": 50.00,
+  "loaded_chunks": 0,
+  "world_seed": -6461033676995397900,
+  "world_time": 12016878,
+  "world_day": 500,
+  "is_raining": false,
+  "difficulty": "normal",
+  "heap_used_bytes": 271404632,
+  "heap_max_bytes": 369098752
+}
+```
+
 ### GET `/mc-stats/players`
 Returns a detailed list of all online players with coordinates and status.
 
@@ -47,7 +75,6 @@ Returns only hardware and container resource metrics.
 
 - The mod uses `SecureRandom` to generate 256-bit high-security tokens on the first boot.
 - Recommended for integration with external Discord bots or status dashboards.
-- Manual `/exometric reload` command is also available for administrators (OP 4).
 
 ## 📄 License
 

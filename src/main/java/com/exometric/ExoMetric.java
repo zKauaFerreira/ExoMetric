@@ -35,20 +35,6 @@ public class ExoMetric implements ModInitializer {
             MetricsCollector.onTick();
         });
 
-        // Registrar comando de reload
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(literal("exometric")
-                .requires(source -> source.hasPermissionLevel(4)) // Apenas admins
-                .then(literal("reload")
-                    .executes(context -> {
-                        StatsHttpServer.reload();
-                        context.getSource().sendFeedback(() -> Text.literal("§a[ExoMetric] Configurações recarregadas com sucesso!"), false);
-                        return 1;
-                    })
-                )
-            );
-        });
-        
         System.out.println("ExoMetric API initialized!");
     }
 }
