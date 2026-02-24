@@ -69,33 +69,73 @@ Returns a detailed list of all online players with coordinates and status.
 **Example Response:**
 ```json
 {
-  "players_online": 2,
+  "players_online": 1,
   "players": [
     {
       "name": "kauafpss_",
       "uuid": "e618e273-d894-3646-ade8-7a13ef58d6c6",
-      "ping": 37,
+      "ping": 0,
       "dimension": "minecraft:overworld",
       "gamemode": "SURVIVAL",
       "level": 32,
-      "health": 20.0,
-      "x": 561.4,
-      "y": 67.0,
-      "z": -33.3,
-      "avatar_url": "https://mc-heads.net/avatar/e618e273-d894-3646-ade8-7a13ef58d6c6/64"
-    },
-    {
-      "name": "but",
-      "uuid": "e92bc5d6-32c4-4cdc-9ea8-e6fea60c9607",
-      "ping": 0,
-      "dimension": "minecraft:overworld",
-      "gamemode": "CREATIVE",
-      "level": 0,
-      "health": 20.0,
-      "x": 0.0,
-      "y": 71.0,
-      "z": 0.0,
-      "avatar_url": "https://mc-heads.net/avatar/e92bc5d6-32c4-4cdc-9ea8-e6fea60c9607/64"
+      "health": 20,
+      "food": 20,
+      "saturation": 11,
+      "x": 556.9,
+      "y": 67,
+      "z": 75.9,
+      "online_seconds": 0,
+      "avatar_url": "https://mc-heads.net/avatar/e618e273-d894-3646-ade8-7a13ef58d6c6/64",
+      "main_hand": null,
+      "off_hand": null,
+      "armor": [
+        {
+          "id": "minecraft:diamond_boots",
+          "count": 1,
+          "slot": 36,
+          "name": "Diamond Boots"
+        },
+        {
+          "id": "minecraft:diamond_leggings",
+          "count": 1,
+          "slot": 37,
+          "name": "Diamond Leggings"
+        },
+        {
+          "id": "minecraft:diamond_chestplate",
+          "count": 1,
+          "slot": 38,
+          "name": "Diamond Chestplate"
+        }
+      ],
+      "hotbar": [
+        {
+          "id": "minecraft:diamond_axe",
+          "count": 1,
+          "slot": 0,
+          "name": "Diamond Axe"
+        },
+        {
+          "id": "minecraft:diamond_pickaxe",
+          "count": 1,
+          "slot": 1,
+          "name": "Diamond Pickaxe"
+        },
+        {
+          "id": "minecraft:diamond_shovel",
+          "count": 1,
+          "slot": 2,
+          "name": "Diamond Shovel"
+        }
+      ],
+      "main_inventory": [
+        {
+          "id": "minecraft:diamond_pickaxe",
+          "count": 1,
+          "slot": 9,
+          "name": "Diamond Pickaxe"
+        }
+      ]
     }
   ]
 }
